@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Xvory</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:       #080407;
+    --surface:  rgba(14,6,6,0.85);
+    --surface2: rgba(20,8,8,0.85);
+    --border:   rgba(90,18,18,0.4);
+    --border2:  rgba(140,28,28,0.5);
+    --red:      #c42020;
+    --red-hi:   #ff3333;
+    --red-lo:   rgba(130,12,12,0.55);
+    --green:    #00e676;
+    --green-lo: rgba(0,60,30,0.5);
+    --text:     #f2eaea;
+    --muted:    #906868;
+    --dim:      #503030;
+    --mono:     'Space Mono', monospace;
+    --sans:     'Syne', sans-serif;
+    --r:        10px;
+    --rl:       16px;
+  }
+
+  html, body { background: var(--bg); color: var(--text); font-family: var(--sans); height: 100%; overflow: hidden; }
+
+  /* red ambient glow */
+  body::after {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background:
+      radial-gradient(ellipse 70% 55% at 10% 50%,  rgba(180,10,10,0.14) 0%, transparent 70%),
+      radial-gradient(ellipse 55% 70% at 90% 15%,  rgba(140,5,5,0.10)  0%, transparent 65%),
+      radial-gradient(ellipse 45% 35% at 50% 100%, rgba(200,20,20,0.08) 0%, transparent 60%);
+  }
+  /* noise */
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 9999; opacity: 0.45;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  }
+
+  /* ── GATE ── */
+  .gate {
+    position: fixed; inset: 0; z-index: 100;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: radial-gradient(ellipse 110% 110% at 50% 50%, rgba(70,5,5,0.22) 0%, var(--bg) 68%);
+    transition: opacity .6s cubic-bezier(.4,0,.2,1), transform .6s cubic-bezier(.4,0,.2,1);
+  }
+  .gate.out { opacity: 0; transform: scale(.97) translateY(-10px); pointer-events: none; }
+
+  .gate-brand { text-align: center; margin-bottom: 2.5rem; }
+  .gate-logo {
+    font-family: var(--sans); font-size: 3.2rem; font-weight: 800;
+    letter-spacing: .18em; line-height: 1;
+    text-shadow: 0 0 50px rgba(220,30,30,.35);
+  }
+  .gate-logo em { color: var(--red-hi); font-style: normal; }
+  .gate-sub {
+    font-family: var(--mono); font-size: .58rem; letter-spacing: .35em;
+    color: var(--dim); text-transform: uppercase; margin-top: .6rem;
+  }
+
+  .gate-card {
+    width: 330px; background: var(--surface); border: 1px solid var(--border2);
+    border-radius: var(--rl); padding: 2rem; position: relative; overflow: hidden;
+    backdrop-filter: blur(14px);
+    box-shadow: 0 0 70px rgba(180,10,10,.13), 0 24px 60px rgba(0,0,0,.5);
+  }
+  .gate-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--red-hi), transparent); opacity: .7;
+  }
+
+  .flabel {
+    font-family: var(--mono); font-size: .6rem; letter-spacing: .2em;
+    color: var(--muted); text-transform: uppercase; margin-bottom: .5rem; display: block;
+    transition: color .2s;
+  }
+  .flabel.err { color: var(--red-hi); }
+
+  .gate-input {
+    width: 100%; background: rgba(5,2,2,.75); border: 1px solid var(--border2);
+    border-radius: 8px; padding: .75rem 1rem;
+    color: var(--text); font-family: var(--mono); font-size: .88rem;
+    letter-spacing: .1em; outline: none;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .gate-input:focus { border-color: var(--red-hi); box-shadow: 0 0 0 3px rgba(200,20,20,.14); }
+  .gate-input.err  { border-color: var(--red-hi); color: var(--red-hi); }
+  .gate-input.shake { animation: shake .4s ease; }
+
+  .gate-err {
+    font-family: var(--mono); font-size: .68rem; color: var(--red-hi);
+    min-height: 1.1rem; margin-top: .45rem; opacity: 0; transition: opacity .2s;
+  }
+  .gate-err.show { opacity: 1; }
+
+  .gate-btn {
+    width: 100%; margin-top: 1.1rem; padding: .82rem; border: none; border-radius: 8px;
+    background: linear-gradient(135deg, var(--red) 0%, #8a1515 100%);
+    color: #fff; font-family: var(--sans); font-size: .84rem; font-weight: 700;
+    letter-spacing: .1em; cursor: pointer;
+    box-shadow: 0 4px 22px rgba(180,10,10,.3);
+    transition: all .2s; position: relative; overflow: hidden;
+  }
+  .gate-btn::after { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,.07) 0%, transparent 55%); }
+  .gate-btn:hover { background: linear-gradient(135deg, var(--red-hi) 0%, var(--red) 100%); box-shadow: 0 4px 32px rgba(200,20,20,.5); transform: translateY(-1px); }
+  .gate-btn:active { transform: scale(.98); }
+
+  /* ── APP ── */
+  .app {
+    position: fixed; inset: 0; z-index: 1;
+    display: flex; flex-direction: column;
+    opacity: 0; pointer-events: none; transition: opacity .5s .2s;
+  }
+  .app.show { opacity: 1; pointer-events: all; }
+
+  /* ── TOPBAR ── */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 1.5rem; height: 52px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(7,3,3,.92); backdrop-filter: blur(14px);
+    flex-shrink: 0; position: relative; z-index: 10;
+    box-shadow: 0 1px 24px rgba(180,10,10,.07);
+  }
+  .topbar-logo { font-family: var(--sans); font-size: 1.05rem; font-weight: 800; letter-spacing: .14em; text-shadow: 0 0 22px rgba(220,30,30,.35); }
+  .topbar-logo em { color: var(--red-hi); font-style: normal; }
+
+  .tabs { display: flex; gap: .25rem; }
+  .tab {
+    padding: .3rem .9rem; border-radius: 6px; border: 1px solid transparent;
+    background: transparent; color: var(--muted);
+    font-family: var(--sans); font-size: .77rem; font-weight: 600; letter-spacing: .05em;
+    cursor: pointer; transition: all .15s;
+  }
+  .tab.active { background: var(--red-lo); border-color: rgba(180,30,30,.55); color: var(--text); }
+  .tab:hover:not(.active) { background: rgba(40,10,10,.5); color: var(--text); }
+
+  /* ── CONTENT ── */
+  .content { flex: 1; overflow-y: auto; padding: 1.25rem; position: relative; z-index: 1; }
+  .pane { display: none; }
+  .pane.active { display: block; animation: fadeUp .28s ease; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(7px); } to { opacity:1; transform:none; } }
+
+  /* ── DASHBOARD ── */
+  .cards { display: grid; grid-template-columns: repeat(2,1fr); gap: .8rem; margin-bottom: .8rem; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--r); padding: 1rem 1.1rem;
+    backdrop-filter: blur(8px); position: relative; overflow: hidden;
+    transition: border-color .2s, transform .2s, box-shadow .2s;
+  }
+  .card:hover { border-color: var(--border2); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(180,10,10,.13); }
+  .card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(200,30,30,.55), transparent);
+    opacity: 0; transition: opacity .2s;
+  }
+  .card:hover::before { opacity: 1; }
+  .card-lbl { font-family: var(--mono); font-size: .58rem; letter-spacing: .18em; text-transform: uppercase; color: var(--dim); margin-bottom: .55rem; }
+  .card-val { font-size: .94rem; font-weight: 600; }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: .42rem;
+    padding: .24rem .68rem; border-radius: 99px;
+    font-family: var(--mono); font-size: .67rem; font-weight: 700;
+  }
+  .pill.green { background: var(--green-lo); color: var(--green); border: 1px solid rgba(0,200,100,.2); }
+  .pdot { width: 6px; height: 6px; border-radius: 50%; }
+  .pill.green .pdot { background: var(--green); box-shadow: 0 0 6px var(--green); animation: blink 2s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.55} }
+
+  .cloud-badge {
+    display: inline-flex; align-items: center; gap: .4rem;
+    font-family: var(--mono); font-size: .72rem; font-weight: 700;
+    color: var(--red-hi); text-shadow: 0 0 14px rgba(255,50,50,.35);
+  }
+  .cbdot { width: 7px; height: 7px; border-radius: 50%; background: var(--red-hi); box-shadow: 0 0 8px var(--red-hi); animation: blink 1.8s infinite; }
+
+  /* ── CONFIG ── */
+  .cfg-layout { display: grid; grid-template-columns: 1fr 262px; gap: .85rem; height: calc(100vh - 52px - 2.5rem); }
+  .editor-panel { display: flex; flex-direction: column; gap: .7rem; }
+  .editor-bar { display: flex; align-items: center; justify-content: space-between; }
+  .editor-title { font-family: var(--mono); font-size: .57rem; letter-spacing: .2em; color: var(--dim); text-transform: uppercase; }
+
+  .btn-save {
+    padding: .38rem 1rem; border-radius: 6px; border: none;
+    background: linear-gradient(135deg, var(--red) 0%, #8a1515 100%);
+    color: #fff; font-family: var(--sans); font-size: .72rem; font-weight: 700;
+    letter-spacing: .07em; cursor: pointer; transition: all .15s;
+    box-shadow: 0 2px 14px rgba(180,10,10,.25);
+  }
+  .btn-save:hover { background: linear-gradient(135deg, var(--red-hi) 0%, var(--red) 100%); box-shadow: 0 2px 22px rgba(200,20,20,.42); transform: translateY(-1px); }
+
+  .editor {
+    flex: 1; min-height: 0;
+    background: rgba(4,2,2,.92); border: 1px solid var(--border);
+    border-radius: var(--r); padding: 1rem;
+    color: #d5bcbc; font-family: var(--mono); font-size: .77rem;
+    line-height: 1.75; resize: none; outline: none; backdrop-filter: blur(8px);
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .editor:focus { border-color: rgba(180,30,30,.6); box-shadow: 0 0 0 3px rgba(180,10,10,.1), 0 0 30px rgba(180,10,10,.05); }
+
+  /* ── HISTORY ── */
+  .history {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--r); display: flex; flex-direction: column;
+    overflow: hidden; backdrop-filter: blur(8px);
+  }
+  .hist-hdr {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .62rem .88rem; border-bottom: 1px solid var(--border);
+  }
+  .hist-title { font-family: var(--mono); font-size: .57rem; letter-spacing: .18em; color: var(--dim); text-transform: uppercase; }
+  .hist-n { background: var(--red-lo); color: var(--muted); font-family: var(--mono); font-size: .57rem; padding: .1rem .5rem; border-radius: 99px; border: 1px solid var(--border); }
+  .hist-list { flex: 1; overflow-y: auto; padding: .55rem; display: flex; flex-direction: column; gap: .42rem; }
+  .hist-list::-webkit-scrollbar { width: 2px; }
+  .hist-list::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 99px; }
+
+  .empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .4rem; padding: 2rem 1rem; height: 100%; }
+  .empty-icon { font-size: 1.2rem; opacity: .18; }
+  .empty-text { font-family: var(--mono); font-size: .6rem; color: var(--dim); text-align: center; }
+
+  .cfg-item {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: .62rem .72rem;
+    transition: border-color .15s, transform .15s, box-shadow .15s;
+    animation: slideIn .22s ease;
+  }
+  .cfg-item:hover { border-color: var(--border2); transform: translateX(2px); box-shadow: 0 4px 18px rgba(180,10,10,.1); }
+  @keyframes slideIn { from { opacity:0; transform:translateX(-6px); } to { opacity:1; transform:none; } }
+  .cfg-name { font-size: .74rem; font-weight: 600; margin-bottom: .1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cfg-time { font-family: var(--mono); font-size: .57rem; color: var(--dim); margin-bottom: .52rem; }
+  .cfg-btns { display: flex; gap: .35rem; }
+
+  .btn-exec {
+    flex: 1; padding: .33rem 0; border-radius: 6px;
+    background: var(--red-lo); border: 1px solid rgba(180,30,30,.5);
+    color: #fff; font-family: var(--mono); font-size: .6rem; font-weight: 700; letter-spacing: .05em;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: .32rem;
+    transition: all .15s;
+  }
+  .btn-exec:hover { background: var(--red); border-color: var(--red-hi); box-shadow: 0 0 16px rgba(200,20,20,.3); }
+  .btn-exec:disabled { opacity: .42; cursor: not-allowed; }
+  .spin { display: inline-block; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  .btn-del {
+    padding: .33rem .55rem; border-radius: 6px;
+    background: transparent; border: 1px solid var(--border);
+    color: var(--dim); font-size: .66rem; cursor: pointer; transition: all .15s;
+  }
+  .btn-del:hover { background: rgba(180,10,10,.15); border-color: var(--red); color: var(--red-hi); }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: 1.5rem; left: 50%;
+    transform: translateX(-50%) translateY(90px);
+    background: rgba(10,4,4,.96); border: 1px solid var(--border2);
+    border-radius: 99px; padding: .52rem 1.3rem;
+    font-family: var(--mono); font-size: .7rem; font-weight: 700; letter-spacing: .05em;
+    transition: transform .35s cubic-bezier(.34,1.56,.64,1);
+    z-index: 9000; white-space: nowrap; pointer-events: none;
+    backdrop-filter: blur(14px); box-shadow: 0 8px 32px rgba(0,0,0,.45);
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.ok   { border-color: rgba(0,200,100,.35); color: var(--green); }
+  .toast.err  { border-color: rgba(200,30,30,.42); color: var(--red-hi); box-shadow: 0 8px 30px rgba(180,10,10,.22); }
+  .toast.info { color: var(--muted); }
+
+  @keyframes shake {
+    0%,100%{transform:translateX(0)} 15%{transform:translateX(-7px)} 30%{transform:translateX(7px)}
+    45%{transform:translateX(-5px)} 60%{transform:translateX(5px)} 75%{transform:translateX(-3px)} 90%{transform:translateX(3px)}
+  }
+
+  @media (max-width:560px) {
+    .cfg-layout { grid-template-columns:1fr; height:auto; }
+    .history { min-height:200px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- GATE -->
+<div class="gate" id="gate">
+  <div class="gate-brand">
+    <div class="gate-logo">X<em>V</em>ORY</div>
+    <div class="gate-sub">Cloud Execution Platform</div>
+  </div>
+  <div class="gate-card">
+    <label class="flabel" id="fl">Access Key</label>
+    <input class="gate-input" id="ki" type="password" placeholder="••••••••••" autocomplete="off" spellcheck="false" />
+    <div class="gate-err" id="em">Access denied.</div>
+    <button class="gate-btn" id="sb">Authenticate</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="appWrap">
+  <div class="topbar">
+    <div class="topbar-logo">X<em>V</em>ORY</div>
+    <div class="tabs">
+      <button class="tab active" data-tab="dashboard">Dashboard</button>
+      <button class="tab" data-tab="config">Config</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- DASHBOARD -->
+    <div class="pane active" id="pane-dashboard">
+      <div class="cards">
+        <div class="card">
+          <div class="card-lbl">Status</div>
+          <div class="card-val">
+            <div class="pill green"><span class="pdot"></span>Active</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-lbl">Cloud Execution</div>
+          <div class="card-val">
+            <div class="cloud-badge"><span class="cbdot"></span>Enabled</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-lbl">Configs Saved</div>
+          <div class="card-val" id="cfgCount">0</div>
+        </div>
+        <div class="card">
+          <div class="card-lbl">Last Executed</div>
+          <div class="card-val" style="font-family:var(--mono);font-size:.76rem;color:var(--muted)" id="lastExec">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONFIG -->
+    <div class="pane" id="pane-config">
+      <div class="cfg-layout">
+        <div class="editor-panel">
+          <div class="editor-bar">
+            <span class="editor-title">Lua Config Editor</span>
+            <button class="btn-save" id="saveBtn">Save Config</button>
+          </div>
+          <textarea class="editor" id="editor" spellcheck="false">-- Xvory Cloud Config
+local Config = {
+    ["Config Method"] = "Cloud-Web",
+    ["Script Name"]   = "MyScript",
+    ["Version"]       = "1.0.0",
+}
+
+if Config["Config Method"] == "Cloud-Web" then
+    local url = "https://test-production-7e81.up.railway.app"
+    local success, result = pcall(function()
+        -- local code = game:HttpGet(url)
+        -- loadstring(code)()
+        print("[Xvory] Cloud execution triggered via: " .. url)
+    end)
+    if not success then
+        warn("[Xvory] Execution failed: " .. tostring(result))
+    end
+else
+    print("[Xvory] Local mode.")
+end</textarea>
+        </div>
+        <div class="history">
+          <div class="hist-hdr">
+            <span class="hist-title">Saved Configs</span>
+            <span class="hist-n" id="hCount">0</span>
+          </div>
+          <div class="hist-list" id="histList">
+            <div class="empty"><div class="empty-icon">⬡</div><div class="empty-text">No configs saved yet</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ─── UPDATE THIS TO YOUR RAILWAY URL ──────────────────
+  const RAILWAY_URL = "https://test-production-7e81.up.railway.app";
+  // ─── UPDATE THESE TO YOUR REAL KEYS ──────────────────
+  const VALID_KEYS = ["XVORY-1234","XVORY-ELITE","XVORY-DEV"];
+  // ──────────────────────────────────────────────────────
+
+  let currentKey = "";
+  let configs    = [];
+
+  const gate     = document.getElementById("gate");
+  const appWrap  = document.getElementById("appWrap");
+  const ki       = document.getElementById("ki");
+  const fl       = document.getElementById("fl");
+  const em       = document.getElementById("em");
+  const cfgCount = document.getElementById("cfgCount");
+  const hCount   = document.getElementById("hCount");
+  const editor   = document.getElementById("editor");
+  const histList = document.getElementById("histList");
+  const lastExec = document.getElementById("lastExec");
+  const toast    = document.getElementById("toast");
+  let toastTmr;
+
+  function showToast(msg, type="ok") {
+    clearTimeout(toastTmr);
+    toast.textContent = msg;
+    toast.className = `toast ${type} show`;
+    toastTmr = setTimeout(() => toast.className = `toast ${type}`, 3000);
+  }
+
+  function failAuth() {
+    ki.classList.add("err","shake");
+    fl.classList.add("err");
+    em.classList.add("show");
+    setTimeout(() => ki.classList.remove("shake"), 450);
+    setTimeout(() => { ki.classList.remove("err"); fl.classList.remove("err"); em.classList.remove("show"); }, 2500);
+  }
+
+  function auth() {
+    const v = ki.value.trim().toUpperCase();
+    if (!VALID_KEYS.includes(v)) { failAuth(); return; }
+    currentKey = v;
+    gate.classList.add("out");
+    setTimeout(() => appWrap.classList.add("show"), 350);
+  }
+
+  document.getElementById("sb").addEventListener("click", auth);
+  ki.addEventListener("keydown", e => e.key === "Enter" && auth());
+
+  document.querySelectorAll(".tab").forEach(t => {
+    t.addEventListener("click", () => {
+      document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+      document.querySelectorAll(".pane").forEach(x => x.classList.remove("active"));
+      t.classList.add("active");
+      document.getElementById("pane-" + t.dataset.tab).classList.add("active");
+    });
+  });
+
+  document.getElementById("saveBtn").addEventListener("click", () => {
+    const code = editor.value.trim();
+    if (!code) { showToast("Editor is empty", "err"); return; }
+    const m    = code.match(/\["Script Name"\]\s*=\s*"([^"]+)"/);
+    const name = m ? m[1] : "Config " + (configs.length + 1);
+    const now  = new Date();
+    const ts   = now.toLocaleDateString() + " " + now.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+    configs.unshift({ id: Date.now(), name, code, ts });
+    renderHistory();
+    showToast("Config saved ✓");
+  });
+
+  function renderHistory() {
+    const n = configs.length;
+    cfgCount.textContent = n;
+    hCount.textContent   = n;
+    if (!n) {
+      histList.innerHTML = `<div class="empty"><div class="empty-icon">⬡</div><div class="empty-text">No configs saved yet</div></div>`;
+      return;
+    }
+    histList.innerHTML = configs.map(c => `
+      <div class="cfg-item" id="c${c.id}">
+        <div class="cfg-name">${esc(c.name)}</div>
+        <div class="cfg-time">${c.ts}</div>
+        <div class="cfg-btns">
+          <button class="btn-exec" id="ex${c.id}" onclick="execCfg(${c.id})">▶ Execute</button>
+          <button class="btn-del" onclick="delCfg(${c.id})">✕</button>
+        </div>
+      </div>`).join("");
+  }
+
+  function esc(s) { return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+  window.execCfg = async function(id) {
+    const cfg = configs.find(c => c.id === id);
+    if (!cfg) return;
+    if (!cfg.code.includes('"Cloud-Web"') && !cfg.code.includes("'Cloud-Web'")) {
+      showToast("Config method must be Cloud-Web","err"); return;
+    }
+    const btn = document.getElementById("ex"+id);
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spin">↻</span> Sending…`;
+    showToast("Sending to cloud…","info");
+    try {
+      const res = await fetch(`${RAILWAY_URL}/execute`, {
+        method: "POST",
+        headers: { "Content-Type":"application/json" },
+        body: JSON.stringify({ key: currentKey, code: cfg.code })
+      });
+      if (res.ok) {
+        const data = await res.json().catch(()=>({}));
+        const t = new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+        lastExec.textContent = t;
+        if (data.output) showToast("Executed ✓  " + data.output.split("\n")[0].slice(0,38), "ok");
+        else if (data.stored) showToast("Stored for executor polling ✓","ok");
+        else showToast("Executed via cloud ✓","ok");
+      } else {
+        const d = await res.json().catch(()=>({}));
+        showToast("Error " + res.status + (d.error ? ": "+d.error : ""),"err");
+      }
+    } catch {
+      showToast("Cannot reach Railway — check the URL","err");
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = "▶ Execute";
+    }
+  };
+
+  window.delCfg = function(id) {
+    const el = document.getElementById("c"+id);
+    if (el) { el.style.transition="opacity .2s,transform .2s"; el.style.opacity="0"; el.style.transform="translateX(8px)"; }
+    setTimeout(() => { configs = configs.filter(c=>c.id!==id); renderHistory(); }, 220);
+  };
+</script>
+</body>
+</html>
